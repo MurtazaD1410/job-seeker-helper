@@ -1,0 +1,198 @@
+import { useMemo, useState } from "react";
+import { Loader2, SquarePen, TriangleAlert } from "lucide-react";
+import { buildFileName } from "@/lib/fileName";
+import { locate } from "@/lib/latex";
+import { OUTCOME_MESSAGE } from "@/lib/overleaf";
+import { tailorResume } from "@/lib/tailor";
+import type { Analysis, Suggestion, SuggestionStates } from "@/lib/schema";
+import type { Settings } from "@/lib/storage";
+import type { OverleafApi } from "../hooks/useOverleaf";
+import type { PdfBuilder } from "../hooks/usePdfBuilder";
+import { BuildPdfButton } from "../components/BuildPdf";
+import { ExportCard } from "../components/ExportCard";
+import { OverleafTarget } from "../components/OverleafTarget";
+import { SuggestionCard } from "../components/SuggestionCard";
+import { Button } from "../components/ui/button";
+
+interface Props {
+  analysis: Analysis | null;
+  settings: Settings;
+  states: SuggestionStates;
+  setState: (id: string, entry: SuggestionStates[string] | null) => void;
+  overleaf: OverleafApi;
+  builder: PdfBuilder;
+  goJob: () => void;
+}
+
+export function ResumeTab({ analysis, settings, states, setState, overleaf, builder, goJob }: Props) {
+  const [copyError, setCopyError] = useState("");
+  const [applying, setApplying] = useState(false);
+  const [applyNote, setApplyNote] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+
+  // Suggestions are only safe to apply while their original still matches the base resume exactly.
+  const staleIds = useMemo(() => {
+    const out = new Set<string>();
+    for (const s of analysis?.suggestions ?? []) if (locate(settings.baseResume, s.original).kind !== "exact") out.add(s.id);
+    return out;
+  }, [analysis, settings.baseResume]);
+
+  // The tailored resume: master + every suggestion that wasn't skipped.
+  const tailored = useMemo(() => {
+    const included = (analysis?.suggestions ?? []).filter((s) => states[s.id]?.status !== "skipped");
+    return tailorResume(settings.baseResume, included);
+  }, [analysis, states, settings.baseResume]);
+
+  if (!analysis) {
+    return (
+      <div className="flex flex-col items-start gap-3 text-sm text-muted-foreground">
+        <p>No analysis yet. Analyse a job description first and your suggestions will show up here.</p>
+        <Button size="sm" variant="secondary" onClick={goJob}>
+          Go to Job
+        </Button>
+      </div>
+    );
+  }
+
+  if (analysis.suggestions.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No honest edits were found for this job
+        {analysis.dropped.some((d) => d.kind === "suggestion") ? ", and some suggestions were discarded by validation (see the Job tab)" : ""}. Your resume
+        already covers what it can.
+      </p>
+    );
+  }
+
+  const list = analysis.suggestions;
+  const count = (st: string) => list.filter((s) => states[s.id]?.status === st).length;
+  const doc = { project: settings.resumeOverleafProject, file: settings.resumeOverleafFile };
+  const docTab = overleaf.tabFor(doc.project);
+  const canApply = !!docTab && !applying;
+  const applicable = list.filter((s) => !staleIds.has(s.id) && states[s.id]?.status !== "skipped" && states[s.id]?.status !== "applied");
+
+  async function copy(s: Suggestion) {
+    setCopyError("");
+    try {
+      await navigator.clipboard.writeText(s.replacement);
+      if (states[s.id]?.status !== "applied") setState(s.id, { status: "copied" });
+    } catch {
+      setCopyError("Couldn't access the clipboard. Select the replacement text in the card and copy it manually.");
+    }
+  }
+
+  // One call = one CodeMirror transaction = one undo step in Overleaf.
+  async function apply(targets: Suggestion[]) {
+    if (!targets.length) return;
+    setApplying(true);
+    setApplyNote(null);
+    const r = await overleaf.callFor(doc, {
+      op: "apply",
+      edits: targets.map((s) => ({ id: s.id, original: s.original, replacement: s.replacement }))
+    });
+    setApplying(false);
+
+    if (!r.ok || r.op !== "apply") {
+      const error = r.ok ? "Unexpected reply from Overleaf." : r.error;
+      for (const s of targets) setState(s.id, { status: "failed", error });
+      setApplyNote({ kind: "error", text: error });
+      return;
+    }
+    let ok = 0;
+    for (const o of r.outcomes) {
+      if (o.status === "applied") {
+        ok++;
+        setState(o.id, { status: "applied" });
+      } else {
+        setState(o.id, { status: "failed", error: OUTCOME_MESSAGE[o.status] });
+      }
+    }
+    const failed = r.outcomes.length - ok;
+    setApplyNote({
+      kind: failed ? "error" : "ok",
+      text: `${ok} applied in Overleaf${failed ? `, ${failed} failed (use Copy for those)` : ""}. Press Ctrl+Z in Overleaf to undo.`
+    });
+    overleaf.recheck();
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <OverleafTarget overleaf={overleaf} />
+      <p className="text-xs text-muted-foreground">
+        Apply goes to: {docTab ? docTab.title : "no open Overleaf project (check Settings)"}
+        {doc.file ? ` · ${doc.file}` : " · the open file"}
+      </p>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-0 flex-1 text-sm">
+          <div className="font-medium">
+            {list.length} suggestion{list.length === 1 ? "" : "s"}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {count("copied")} copied · {count("applied")} applied · {count("skipped")} skipped
+          </div>
+        </div>
+        <Button
+          size="sm"
+          disabled={!canApply || applicable.length === 0}
+          onClick={() => void apply(applicable)}
+          title={!docTab ? "Open your resume's Overleaf project in a tab to apply. Copy always works." : undefined}
+        >
+          {applying ? <Loader2 className="animate-spin" /> : <SquarePen />} Apply all
+        </Button>
+      </div>
+
+      {applyNote && (
+        <p role={applyNote.kind === "error" ? "alert" : "status"} className={`text-sm ${applyNote.kind === "error" ? "text-destructive" : "text-success"}`}>
+          {applyNote.text}
+        </p>
+      )}
+
+      <ExportCard
+        title="Tailored resume"
+        summary={`${tailored.applied.length} of ${list.length} suggestion${list.length === 1 ? "" : "s"} included. Skipped ones are left out.`}
+        fileName={buildFileName(settings.resumeFileName, { company: analysis.company, role: analysis.job_title }, "tex")}
+        latex={tailored.latex}
+        original={settings.baseResume}
+        disabled={tailored.applied.length === 0}
+        issues={[
+          ...tailored.failed.map((f) => `${f.suggestion.section || f.suggestion.id} was left out: ${f.reason}.`),
+          ...(tailored.problem ? [`The combined result looks broken (${tailored.problem}). Check it before using it.`] : [])
+        ]}
+      >
+        <BuildPdfButton
+          label="resume"
+          tailored={tailored.latex}
+          master={settings.baseResume}
+          doc={doc}
+          tabTitle={docTab?.title}
+          fileName={buildFileName(settings.resumeFileName, { company: analysis.company, role: analysis.job_title }, "pdf")}
+          overleaf={overleaf}
+          builder={builder}
+          disabled={tailored.applied.length === 0}
+        />
+      </ExportCard>
+
+      {copyError && (
+        <p role="alert" className="flex items-start gap-2 text-sm text-destructive">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+          <span>{copyError}</span>
+        </p>
+      )}
+
+      {list.map((s, i) => (
+        <SuggestionCard
+          key={s.id}
+          suggestion={s}
+          index={i}
+          state={states[s.id]}
+          stale={staleIds.has(s.id)}
+          canApply={canApply}
+          onCopy={() => void copy(s)}
+          onSkip={() => setState(s.id, { status: "skipped" })}
+          onRestore={() => setState(s.id, null)}
+          onApply={() => void apply([s])}
+        />
+      ))}
+    </div>
+  );
+}

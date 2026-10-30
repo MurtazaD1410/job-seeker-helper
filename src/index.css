@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+/* Light by default; dark follows the system. */
+:root {
+  color-scheme: light dark;
+  --background: #ffffff;
+  --foreground: #171717;
+  --card: #f6f6f7;
+  --card-foreground: #171717;
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --secondary: #ececef;
+  --secondary-foreground: #171717;
+  --muted: #ececef;
+  --muted-foreground: #6b6b76;
+  --accent: #e2e2e8;
+  --accent-foreground: #171717;
+  --border: #d9d9e0;
+  --input: #d9d9e0;
+  --ring: #4f46e5;
+  --success: #15803d;
+  --warning: #a16207;
+  --destructive: #dc2626;
+  --radius: 0.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #161618;
+    --foreground: #ececf1;
+    --card: #1f1f23;
+    --card-foreground: #ececf1;
+    --primary: #818cf8;
+    --primary-foreground: #14142b;
+    --secondary: #2a2a30;
+    --secondary-foreground: #ececf1;
+    --muted: #2a2a30;
+    --muted-foreground: #9a9aa6;
+    --accent: #34343c;
+    --accent-foreground: #ececf1;
+    --border: #34343c;
+    --input: #34343c;
+    --ring: #818cf8;
+    --success: #4ade80;
+    --warning: #facc15;
+    --destructive: #f87171;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-destructive: var(--destructive);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+}
+
+html, body, #root { min-height: 100vh; }
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
