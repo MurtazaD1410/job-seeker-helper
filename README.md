@@ -131,5 +131,3 @@ Your API key and all your texts are stored in `chrome.storage.local`. There is n
 - **Windows build error**: If `npm run build` fails with a rolldown "Cannot find native binding" error, delete `node_modules` and `package-lock.json`, then run `npm install --legacy-peer-deps` again.
 
 ⭐ If you found this project helpful, please give it a star on GitHub!
-#   j o b - s e e k e r - h e l p e r  
- 
