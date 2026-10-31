@@ -84,9 +84,9 @@ export function extractJobFromPage(): GrabResult {
     {
       name: "indeed",
       host: /(^|\.)indeed\.[a-z.]+$/,
-      description: ["#jobDescriptionText", ".jobsearch-JobComponent-description", ".jobsearch-jobDescriptionText"],
+      description: [".simple-job-description-html", "#jobDescriptionText", ".jobsearch-JobComponent-description", ".jobsearch-jobDescriptionText", "[data-testid='jobsearch-ViewjobPaneWrapper'] .jobsearch-JobComponent", "[data-testid='jobsearch-JobComponent-description']", "[class*='jobsearch-JobComponent-description']", "[id*='jobDescription']"],
       title: [".jobsearch-JobInfoHeader-title", "[data-testid='jobsearch-JobInfoHeader-title']", "h1"],
-      company: ["[data-testid='inlineHeader-companyName']", "[data-company-name='true']"]
+      company: ["[data-testid='inlineHeader-companyName']", "[data-company-name='true']", "[data-testid='company-info-metadata']", ".company-info-metadata"]
     },
     {
       name: "xing",
@@ -183,12 +183,18 @@ export function extractJobFromPage(): GrabResult {
         title = title || pt[1];
         company = company || pt[2];
       }
+    } else if (site?.name === "indeed") {
+      // "Job title - 36037 Fulda - Indeed.com": drop the location and the site name.
+      const parts = docTitle.split(" - ");
+      if (parts.length >= 3 && /indeed/i.test(parts[parts.length - 1])) title = title || parts.slice(0, -2).join(" - ");
     } else if (site?.name === "lever" && docTitle.includes(" - ")) {
       const [c, ...rest] = docTitle.split(" - ");
       company = company || c;
       title = title || rest.join(" - ");
     }
   }
+  // Indeed's company block lists the name, rating and place on separate lines: only the first is the name.
+  if (site?.name === "indeed") company = company.split("\n")[0].trim();
   if (!company) company = meta("og:site_name");
   if (!title) title = textOf(document.querySelector("h1")) || meta("og:title");
   title = title.slice(0, 200);

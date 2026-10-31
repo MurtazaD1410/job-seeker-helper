@@ -20,11 +20,22 @@ export function jobSiteOriginFor(url: string): string | null {
   }
 }
 
+const SOURCE_RANK: Record<GrabSource, number> = { selection: 4, site: 3, "structured-data": 2, fallback: 1, none: 0 };
+
+/**
+ * The best result across frames: your selection, then a known site's description block, then the page's
+ * job-posting data, then the largest-block guess; longer text wins a tie.
+ */
+export function pickBest(results: GrabResult[]): GrabResult | undefined {
+  return [...results].sort((a, b) => SOURCE_RANK[b.source] - SOURCE_RANK[a.source] || b.text.length - a.text.length)[0];
+}
+
+// Some sites (Indeed's search page) show the job in an embedded frame, so every frame is read.
 async function runExtractor(tabId: number): Promise<GrabResult> {
-  const [frame] = await chrome.scripting.executeScript({ target: { tabId }, func: extractJobFromPage });
-  const result = frame?.result as GrabResult | undefined;
-  if (!result) throw new Error("The page returned no data.");
-  return result;
+  const frames = await chrome.scripting.executeScript({ target: { tabId, allFrames: true }, func: extractJobFromPage });
+  const best = pickBest(frames.map((f) => f.result as GrabResult | undefined).filter((r): r is GrabResult => !!r));
+  if (!best) throw new Error("The page returned no data.");
+  return best;
 }
 
 /** Reads the job description from the active tab. Throws an Error with a user-readable message. */

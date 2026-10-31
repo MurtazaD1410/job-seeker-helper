@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
 import { extractJobFromPage, type GrabResult } from "@/content/jobGrabber";
-import { jobSiteOriginFor } from "@/lib/grabJob";
+import { jobSiteOriginFor, pickBest } from "@/lib/grabJob";
 
 // jsdom has no innerText; approximate it with textContent.
 Object.defineProperty(HTMLElement.prototype, "innerText", {
@@ -122,6 +122,42 @@ describe("extractJobFromPage", () => {
     expect(r.text).not.toContain("bewerben");
   });
 
+  it("reads Indeed's current description block and not the results list beside it", () => {
+    setPage(
+      `<main><ul class="jobsearch-ResultsList">${"<li><a href='#'>Another job in Fulda</a></li>".repeat(60)}</ul>
+         <div><h1 class="jobsearch-JobInfoHeader-title">Softwareentwickler (m/w/d)</h1>
+         <div class="react-native-html-content simple-job-description-html"><p>${LONG}</p></div></div></main>`,
+      "https://de.indeed.com/viewjob?jk=4560a26ed3dce067"
+    );
+    const r = run();
+    expect(r.source).toBe("site");
+    expect(r.title).toBe("Softwareentwickler (m/w/d)");
+    expect(r.text).toContain("TypeScript");
+    expect(r.text).not.toContain("Another job");
+  });
+
+  it("reads Indeed's title from the page title and the company from the first line of its info block", () => {
+    setPage(
+      `<main><div data-testid="company-info-title-row" class="css-g5y9jx">Mit KI in die IT: Dein Neustart als Full Stack Entwickler (m/w/d)</div>
+         <div data-testid="company-info-metadata" class="css-g5y9jx">Syntex GmbH
+·
+4.2
+36037 Fulda
+Homeoffice</div>
+         <div class="react-native-html-content simple-job-description-html"><p>${LONG}</p></div></main>`,
+      "https://de.indeed.com/viewjob?jk=4560a26ed3dce067",
+      "Mit KI in die IT: Dein Neustart als Full Stack Entwickler (m/w/d) - 36037 Fulda - Indeed.com"
+    );
+    const r = run();
+    expect(r.title).toBe("Mit KI in die IT: Dein Neustart als Full Stack Entwickler (m/w/d)");
+    expect(r.company).toBe("Syntex GmbH");
+  });
+
+  it("keeps ' - ' inside an Indeed job title", () => {
+    setPage(`<main><div class="simple-job-description-html"><p>${LONG}</p></div></main>`, "https://de.indeed.com/viewjob?jk=1", "Frontend - React - Entwickler - Fulda - Indeed.com");
+    expect(run().title).toBe("Frontend - React - Entwickler");
+  });
+
   it("returns source none when nothing useful is on the page", () => {
     setPage("<main><p>Hi</p></main>");
     expect(run().source).toBe("none");
@@ -139,5 +175,23 @@ describe("jobSiteOriginFor", () => {
   it("rejects insecure and invalid URLs", () => {
     expect(jobSiteOriginFor("http://www.linkedin.com/")).toBeNull();
     expect(jobSiteOriginFor("nonsense")).toBeNull();
+  });
+});
+
+describe("pickBest", () => {
+  const r = (source: "selection" | "site" | "structured-data" | "fallback" | "none", len: number) => ({ source, text: "x".repeat(len), title: "", company: "" });
+
+  it("prefers the job frame over a page-wide guess, even if the guess is longer", () => {
+    expect(pickBest([r("fallback", 9000), r("site", 1500)])?.source).toBe("site");
+  });
+
+  it("ranks selection > site > structured data > fallback and breaks ties by length", () => {
+    expect(pickBest([r("site", 100), r("selection", 40)])?.source).toBe("selection");
+    expect(pickBest([r("structured-data", 100), r("fallback", 500)])?.source).toBe("structured-data");
+    expect(pickBest([r("site", 100), r("site", 300)])?.text.length).toBe(300);
+  });
+
+  it("returns undefined for no results", () => {
+    expect(pickBest([])).toBeUndefined();
   });
 });
