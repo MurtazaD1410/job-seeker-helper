@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Loader2, SquarePen, TriangleAlert } from "lucide-react";
+import { Loader2, RotateCcw, SquarePen, TriangleAlert } from "lucide-react";
 import { buildFileName } from "@/lib/fileName";
 import { locate } from "@/lib/latex";
 import { OUTCOME_MESSAGE } from "@/lib/overleaf";
@@ -9,6 +9,7 @@ import type { Settings } from "@/lib/storage";
 import type { OverleafApi } from "../hooks/useOverleaf";
 import type { PdfBuilder } from "../hooks/usePdfBuilder";
 import { BuildPdfButton } from "../components/BuildPdf";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ExportCard } from "../components/ExportCard";
 import { OverleafTarget } from "../components/OverleafTarget";
 import { SuggestionCard } from "../components/SuggestionCard";
@@ -28,6 +29,9 @@ export function ResumeTab({ analysis, settings, states, setState, overleaf, buil
   const [copyError, setCopyError] = useState("");
   const [applying, setApplying] = useState(false);
   const [applyNote, setApplyNote] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  // Set when suggestions couldn't be placed because the open file differs from the master.
+  const [mismatch, setMismatch] = useState(false);
+  const [confirmReset, setConfirmReset] = useState<{ thenApply: boolean } | null>(null);
 
   // Suggestions are only safe to apply while their original still matches the base resume exactly.
   const staleIds = useMemo(() => {
@@ -85,6 +89,7 @@ export function ResumeTab({ analysis, settings, states, setState, overleaf, buil
     if (!targets.length) return;
     setApplying(true);
     setApplyNote(null);
+    setMismatch(false);
     const r = await overleaf.callFor(doc, {
       op: "apply",
       edits: targets.map((s) => ({ id: s.id, original: s.original, replacement: s.replacement }))
@@ -107,11 +112,35 @@ export function ResumeTab({ analysis, settings, states, setState, overleaf, buil
       }
     }
     const failed = r.outcomes.length - ok;
+    setMismatch(r.outcomes.some((o) => o.status === "not-found"));
     setApplyNote({
       kind: failed ? "error" : "ok",
       text: `${ok} applied in Overleaf${failed ? `, ${failed} failed (use Copy for those)` : ""}. Press Ctrl+Z in Overleaf to undo.`
     });
     overleaf.recheck();
+  }
+
+  // Suggestions are written against the master, so the open file has to match it. This overwrites the open
+  // file with the master (Ctrl+Z undoes it) and, if asked, applies every suggestion that is still wanted.
+  async function resetToMaster(thenApply: boolean) {
+    setConfirmReset(null);
+    setApplying(true);
+    setApplyNote(null);
+    const r = await overleaf.callFor(doc, { op: "replace", text: settings.baseResume });
+    setApplying(false);
+    if (!r.ok || r.op !== "replace") {
+      setApplyNote({ kind: "error", text: `${r.ok ? "Unexpected reply from Overleaf." : r.error} Nothing was changed.` });
+      return;
+    }
+    setMismatch(false);
+    // What had been applied is gone from the file now.
+    for (const s of list) if (states[s.id]?.status === "applied") setState(s.id, null);
+    overleaf.recheck();
+    if (thenApply) {
+      await apply(list.filter((s) => !staleIds.has(s.id) && states[s.id]?.status !== "skipped"));
+    } else {
+      setApplyNote({ kind: "ok", text: "The Overleaf file now matches your master resume. Press Ctrl+Z in Overleaf to undo." });
+    }
   }
 
   return (
@@ -139,12 +168,30 @@ export function ResumeTab({ analysis, settings, states, setState, overleaf, buil
         >
           {applying ? <Loader2 className="animate-spin" /> : <SquarePen />} Apply all
         </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!canApply}
+          onClick={() => setConfirmReset({ thenApply: false })}
+          title={!docTab ? "Open your resume's Overleaf project in a tab first." : "Overwrite the open Overleaf file with your master resume"}
+        >
+          <RotateCcw /> Reset to master
+        </Button>
       </div>
 
       {applyNote && (
         <p role={applyNote.kind === "error" ? "alert" : "status"} className={`text-sm ${applyNote.kind === "error" ? "text-destructive" : "text-success"}`}>
           {applyNote.text}
         </p>
+      )}
+
+      {mismatch && (
+        <div className="flex flex-col items-start gap-2 rounded-lg border border-border bg-card p-3 text-sm">
+          <p>The open Overleaf file doesn't match the master resume in your Settings, so some suggestions couldn't be placed.</p>
+          <Button size="sm" disabled={!canApply} onClick={() => setConfirmReset({ thenApply: true })}>
+            <RotateCcw /> Overwrite with master, then apply
+          </Button>
+        </div>
       )}
 
       <ExportCard
@@ -178,6 +225,21 @@ export function ResumeTab({ analysis, settings, states, setState, overleaf, buil
           <span>{copyError}</span>
         </p>
       )}
+
+      <ConfirmDialog
+        open={confirmReset !== null}
+        title="Overwrite the open Overleaf file with your master?"
+        confirmLabel={confirmReset?.thenApply ? "Overwrite and apply" : "Overwrite"}
+        busy={applying}
+        onCancel={() => setConfirmReset(null)}
+        onConfirm={() => void resetToMaster(confirmReset?.thenApply ?? false)}
+      >
+        <p>
+          This replaces the whole content of {doc.file || "the open file"} in {docTab?.title ?? "Overleaf"} with the master resume from your Settings
+          {confirmReset?.thenApply ? ", then applies your suggestions" : ""}. Ctrl+Z in Overleaf undoes it.
+        </p>
+        <p className="font-medium text-warning">Anything in that file that isn't in your master is lost. Make sure it's saved, for example in your backup file.</p>
+      </ConfirmDialog>
 
       {list.map((s, i) => (
         <SuggestionCard

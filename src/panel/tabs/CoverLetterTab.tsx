@@ -12,6 +12,7 @@ import { BuildPdfButton } from "../components/BuildPdf";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { OverleafTarget } from "../components/OverleafTarget";
 import { DiffView } from "../components/DiffView";
+import { LetterPreview } from "../components/LetterPreview";
 import { Elapsed } from "../components/Elapsed";
 import { Button } from "../components/ui/button";
 
@@ -25,6 +26,7 @@ interface Props {
   status: AnalysisStatus;
   overleaf: OverleafApi;
   builder: PdfBuilder;
+  onEdit: (latex: string) => void;
   onGenerate: () => void;
   onCancel: () => void;
   goSettings: () => void;
@@ -33,8 +35,8 @@ interface Props {
 
 const SELECT = "h-9 rounded-md border border-input bg-background px-2 text-sm";
 
-export function CoverLetterTab({ settings, job, analysis, letter, prefs, setPrefs, status, overleaf, builder, onGenerate, onCancel, goSettings, goJob }: Props) {
-  const [view, setView] = useState<"letter" | "diff">("letter");
+export function CoverLetterTab({ settings, job, analysis, letter, prefs, setPrefs, status, overleaf, builder, onEdit, onGenerate, onCancel, goSettings, goJob }: Props) {
+  const [view, setView] = useState<"preview" | "letter" | "diff">("preview");
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState("");
   const running = status.state === "running";
@@ -187,14 +189,16 @@ export function CoverLetterTab({ settings, job, analysis, letter, prefs, setPref
           {letter.summary && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{letter.summary}</p>}
 
           <div className="flex gap-1" role="tablist" aria-label="Cover letter view">
-            {(["letter", "diff"] as const).map((v) => (
+            {(["preview", "letter", "diff"] as const).map((v) => (
               <Button key={v} size="sm" variant={view === v ? "secondary" : "ghost"} role="tab" aria-selected={view === v} onClick={() => setView(v)}>
-                {v === "letter" ? "Letter (LaTeX)" : "Changes vs. your base"}
+                {v === "preview" ? "Preview" : v === "letter" ? "LaTeX" : "Changes vs. your base"}
               </Button>
             ))}
           </div>
 
-          {view === "letter" ? (
+          {view === "preview" ? (
+            <LetterPreview latex={letter.latex} onChange={onEdit} />
+          ) : view === "letter" ? (
             <pre className="max-h-[28rem] overflow-auto whitespace-pre-wrap break-words rounded-md border border-border bg-background p-2 font-mono text-xs leading-relaxed">
               {letter.latex}
             </pre>

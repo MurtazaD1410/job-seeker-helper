@@ -143,3 +143,48 @@ export const CoverLetterSchema = z.object({
   created_at: z.number()
 });
 export type CoverLetter = z.infer<typeof CoverLetterSchema>;
+
+// --- LinkedIn outreach (plain text, so JSON mode is fine here)
+
+/** LinkedIn's limit for the note on a connection request. */
+export const NOTE_LIMIT = 300;
+
+export const OUTREACH_FIELDS = [
+  "connection_note",
+  "email_subject",
+  "email_body",
+  "followup_note",
+  "accepted_message",
+  "referral_request"
+] as const;
+export type OutreachField = (typeof OUTREACH_FIELDS)[number];
+/** The fields that have to fit LinkedIn's note limit. */
+export const LIMITED_FIELDS = ["connection_note", "followup_note"] as const satisfies readonly OutreachField[];
+
+export const OutreachResponseSchema = z.object({
+  connection_note: z.string().trim().min(1),
+  email_subject: z.string().trim().min(1).max(200),
+  email_body: z.string().trim().min(1),
+  followup_note: z.string().trim().min(1),
+  accepted_message: z.string().trim().min(1),
+  referral_request: z.string().trim().min(1)
+});
+export type OutreachResponse = z.infer<typeof OutreachResponseSchema>;
+
+export const OUTREACH_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: Object.fromEntries(OUTREACH_FIELDS.map((f) => [f, { type: "STRING" }])),
+  required: [...OUTREACH_FIELDS]
+} as const;
+
+export const OutreachSchema = OutreachResponseSchema.extend({
+  warnings: z.array(z.string()),
+  tone: z.enum(TONES),
+  language: z.enum(LANGUAGES),
+  recipient: z.string().default(""),
+  model: z.string(),
+  job_title: z.string(),
+  company: z.string(),
+  created_at: z.number()
+});
+export type Outreach = z.infer<typeof OutreachSchema>;

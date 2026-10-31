@@ -17,6 +17,7 @@ export function useCoverLetter() {
   const [prefs, setPrefsState] = useState<CoverPrefs>({ tone: "formal", language: "auto" });
   const [status, setStatus] = useState<AnalysisStatus>({ state: "idle" });
   const abort = useRef<AbortController>(undefined);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     void loadCoverLetter().then((c) => setLetter((prev) => prev ?? c));
@@ -65,12 +66,24 @@ export function useCoverLetter() {
 
   const cancel = useCallback(() => abort.current?.abort(), []);
 
+  // Your edits in the preview are kept (debounced) so switching tabs doesn't lose them.
+  const edit = useCallback((latex: string) => {
+    setLetter((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, latex };
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => void saveCoverLetter(next), 300);
+      return next;
+    });
+  }, []);
+
   // Stops a running generation and forgets the draft (tone and language preferences are kept).
   const reset = useCallback(() => {
     abort.current?.abort();
+    clearTimeout(timer.current);
     setLetter(null);
     setStatus({ state: "idle" });
   }, []);
 
-  return { letter, prefs, setPrefs, status, run, cancel, reset };
+  return { letter, prefs, setPrefs, status, run, edit, cancel, reset };
 }

@@ -129,15 +129,14 @@ describe("extractJobFromPage", () => {
 });
 
 describe("jobSiteOriginFor", () => {
-  it("matches known job sites and subdomains", () => {
+  it("asks for the page's own origin on any https site", () => {
     expect(jobSiteOriginFor("https://www.linkedin.com/jobs/view/1")).toBe("https://www.linkedin.com/*");
     expect(jobSiteOriginFor("https://acme.wd3.myworkdayjobs.com/en-US/x")).toBe("https://acme.wd3.myworkdayjobs.com/*");
-    expect(jobSiteOriginFor("https://jobs.lever.co/acme/1")).toBe("https://jobs.lever.co/*");
+    expect(jobSiteOriginFor("https://tytantechnologiesgmbh.recruitee.com/o/unsolicited-application")).toBe("https://tytantechnologiesgmbh.recruitee.com/*");
+    expect(jobSiteOriginFor("https://example.com/careers?id=1")).toBe("https://example.com/*");
   });
 
-  it("rejects unknown, lookalike, insecure and invalid URLs", () => {
-    expect(jobSiteOriginFor("https://example.com/")).toBeNull();
-    expect(jobSiteOriginFor("https://notlinkedin.com/")).toBeNull();
+  it("rejects insecure and invalid URLs", () => {
     expect(jobSiteOriginFor("http://www.linkedin.com/")).toBeNull();
     expect(jobSiteOriginFor("nonsense")).toBeNull();
   });

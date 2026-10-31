@@ -1,5 +1,4 @@
 import { extractJobFromPage, type GrabResult, type GrabSource } from "@/content/jobGrabber";
-import { JOB_SITE_ORIGINS } from "@/manifest";
 
 export type { GrabResult, GrabSource };
 
@@ -11,19 +10,14 @@ export const SOURCE_LABEL: Record<GrabSource, string> = {
   none: "nothing"
 };
 
-/** The origin pattern to request if `url` belongs to a known job site, else null. */
+/** The origin pattern to request for `url`: any https page. Null for anything else. */
 export function jobSiteOriginFor(url: string): string | null {
-  let u: URL;
   try {
-    u = new URL(url);
+    const u = new URL(url);
+    return u.protocol === "https:" ? `${u.origin}/*` : null;
   } catch {
     return null;
   }
-  const hit = JOB_SITE_ORIGINS.some((pattern) => {
-    const base = pattern.replace(/^https:\/\/\*\./, "").replace(/\/\*$/, "");
-    return u.protocol === "https:" && (u.hostname === base || u.hostname.endsWith(`.${base}`));
-  });
-  return hit ? `${u.origin}/*` : null;
 }
 
 async function runExtractor(tabId: number): Promise<GrabResult> {

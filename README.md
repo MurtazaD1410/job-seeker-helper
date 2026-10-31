@@ -127,7 +127,7 @@ Your API key and all your texts are stored in `chrome.storage.local`. There is n
 - **Build PDF needs Auto compile**: It works best with Auto compile on and "Try to compile despite errors" ticked. If the PDF cannot be fetched directly, the browser may download `output.pdf` itself.
 - **Interrupted PDF build**: If the panel closes mid-build, reopen it and use **Restore now** on the banner. The backup is kept until the restore is verified.
 - **Rate limits and speed**: Limits depend on your Gemini tier and model. If an analysis times out, pick a faster model in Settings.
-- **Optional site access**: Chrome asks for permission the first time you grab from a job site.
+- **Site access**: The extension may read any https page, so Grab works on every career site without a prompt. It only reads a tab when you press Grab or use the Overleaf buttons. Chrome shows this as "read and change your data on all websites" when you load it.
 - **Windows build error**: If `npm run build` fails with a rolldown "Cannot find native binding" error, delete `node_modules` and `package-lock.json`, then run `npm install --legacy-peer-deps` again.
 
 ⭐ If you found this project helpful, please give it a star on GitHub!

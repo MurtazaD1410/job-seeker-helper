@@ -2,10 +2,12 @@ import {
   AnalysisSchema,
   CoverLetterSchema,
   CoverPrefsSchema,
+  OutreachSchema,
   SuggestionStateSchema,
   type Analysis,
   type CoverLetter,
   type CoverPrefs,
+  type Outreach,
   type SuggestionStates
 } from "./schema";
 
@@ -166,11 +168,23 @@ export async function saveCoverPrefs(p: CoverPrefs): Promise<void> {
   await chrome.storage.local.set({ [COVER_PREFS_KEY]: p });
 }
 
+const OUTREACH_KEY = "outreach";
+
+export async function loadOutreach(): Promise<Outreach | null> {
+  const stored = await chrome.storage.local.get(OUTREACH_KEY);
+  const parsed = OutreachSchema.safeParse(stored[OUTREACH_KEY]);
+  return parsed.success ? parsed.data : null;
+}
+
+export async function saveOutreach(o: Outreach): Promise<void> {
+  await chrome.storage.local.set({ [OUTREACH_KEY]: o });
+}
+
 /**
  * Forgets everything about the current job: the description, the analysis, the suggestion progress and the
- * cover letter draft. Settings, your master texts, the cover letter tone/language and any PDF-build backup
+ * cover letter and LinkedIn drafts. Settings, your master texts, the cover letter tone/language and any PDF-build backup
  * are deliberately kept.
  */
 export async function clearJobData(): Promise<void> {
-  await chrome.storage.local.remove([JOB_KEY, ANALYSIS_KEY, STATE_KEY, COVER_KEY]);
+  await chrome.storage.local.remove([JOB_KEY, ANALYSIS_KEY, STATE_KEY, COVER_KEY, OUTREACH_KEY]);
 }
