@@ -130,6 +130,31 @@ export function parseLetter(latex: string): PreviewLine[] {
   return out;
 }
 
+/**
+ * The letter as clean plain text for pasting into a web form: greeting, paragraphs and closing. Everything
+ * before the greeting (header boxes, title, date) is layout and left out; emphasis markers are removed.
+ */
+export function toPlainText(latex: string): string {
+  const lines = parseLetter(latex);
+  const first = lines.findIndex((l) => l.kind === "text");
+  if (first === -1) return "";
+  const clean = (s: string) => s.replace(/\*\*([^*]+?)\*\*/g, "$1").replace(/\*([^*]+?)\*/g, "$1").replace(new RegExp(NBSP, "g"), " ");
+  const blocks: string[][] = [[]];
+  lines.slice(first).forEach((l, i) => {
+    if (l.kind === "gap") {
+      if (blocks[blocks.length - 1].length) blocks.push([]);
+      return;
+    }
+    blocks[blocks.length - 1].push(clean(l.text));
+    // The greeting stands alone even when the first paragraph follows it directly.
+    if (i === 0) blocks.push([]);
+  });
+  return blocks
+    .filter((b) => b.length)
+    .map((b) => b.join("\n"))
+    .join("\n\n");
+}
+
 /** Replaces the text of one prose line, leaving everything else of the document untouched. */
 export function applyLineEdit(latex: string, index: number, text: string): string {
   const lines = latex.split("\n");

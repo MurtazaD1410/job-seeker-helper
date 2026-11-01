@@ -5,7 +5,7 @@ A Chrome side panel extension that tailors your LaTeX resume and cover letter to
 ## ✨ Features
 
 - **Side Panel**: Stays open next to the job posting and Overleaf as you switch tabs
-- **Grab from Page**: Reads the job description from the active tab (LinkedIn, StepStone, Indeed, XING, Greenhouse, Lever, Workday, Personio, JSON-LD, or your text selection)
+- **Grab from Page**: Reads the job description from the active tab (LinkedIn, StepStone, Indeed, XING, Greenhouse, Lever, Workday, Personio, Workwise, JSON-LD, or your text selection)
 - **Keyword Analysis**: Sorts the job's keywords into present, missing but supported by your resume, and missing and not supported
 - **Match Scores**: A before and after score for how well your resume fits the job
 - **Suggestion Cards**: Each change shows a word-level diff with Copy, Skip and Apply, plus Apply all
@@ -86,7 +86,8 @@ A Chrome side panel extension that tailors your LaTeX resume and cover letter to
 2. **Resume tab**: review the suggestions. **Apply** writes into Overleaf, **Copy** puts the new text on your clipboard, **Skip** hides it
 3. **Export**: download the tailored `.tex`, or press **Build PDF** to get the PDF while Overleaf returns to your master
 4. **Cover Letter tab**: choose tone and language, generate, review the diff, then Copy, Download `.tex`, Build PDF or Apply to Overleaf
-5. **New job**: after you have applied, click **New job** in the header to clear everything job-specific. Your settings and master texts stay
+5. **Q&A tab**: paste a question from an application form, pick the language level (B1 simple, B2 clear, C1 professional), length and an optional character limit, and get an answer from your resume and facts. It uses a pro model by default (editable) and is Copy-ready as plain text
+6. **New job**: after you have applied, click **New job** in the header to clear everything job-specific. Your settings and master texts stay
 
 ### Development
 

@@ -8,6 +8,8 @@ import { SettingsTab } from "./tabs/SettingsTab";
 import { JobTab } from "./tabs/JobTab";
 import { CoverLetterTab } from "./tabs/CoverLetterTab";
 import { LinkedInTab } from "./tabs/LinkedInTab";
+import { AnswersTab } from "./tabs/AnswersTab";
+import { useAnswers } from "./hooks/useAnswers";
 import { useOverleaf } from "./hooks/useOverleaf";
 import { usePdfBuilder } from "./hooks/usePdfBuilder";
 import { PendingRestoreBanner } from "./components/BuildPdf";
@@ -21,7 +23,7 @@ import { useAnalysis } from "./hooks/useAnalysis";
 import { useSuggestionState } from "./hooks/useSuggestionState";
 import { useJobDraft } from "./hooks/useJobDraft";
 
-const TABS = ["Job", "Resume", "Cover Letter", "LinkedIn", "Settings"] as const;
+const TABS = ["Job", "Resume", "Cover Letter", "LinkedIn", "Q&A", "Settings"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function App() {
@@ -30,6 +32,7 @@ export default function App() {
   const { analysis, status, run, cancel, reset: resetAnalysis } = useAnalysis();
   const cover = useCoverLetter();
   const outreach = useOutreach();
+  const answers = useAnswers();
   const overleaf = useOverleaf();
   const builder = usePdfBuilder(overleaf);
   const suggestionState = useSuggestionState(analysis);
@@ -40,14 +43,20 @@ export default function App() {
   const [clearCount, setClearCount] = useState(0);
 
   // "New job": after applying, forget the job, analysis, suggestions, cover letter and LinkedIn drafts.
-  const hasJobData = !!(job.title || job.company || job.description || analysis || cover.letter || outreach.pack);
-  const working = status.state === "running" || cover.status.state === "running" || outreach.status.state === "running" || builder.state.phase === "running";
+  const hasJobData = !!(job.title || job.company || job.description || analysis || cover.letter || outreach.pack || answers.items.length);
+  const working =
+    status.state === "running" ||
+    cover.status.state === "running" ||
+    outreach.status.state === "running" ||
+    answers.status.state === "running" ||
+    builder.state.phase === "running";
   async function clearAll() {
     setConfirmClear(false);
     resetJob();
     resetAnalysis();
     cover.reset();
     outreach.reset();
+    answers.reset();
     builder.clearResult();
     await clearJobData();
     setClearCount((n) => n + 1);
@@ -78,7 +87,7 @@ export default function App() {
             <RotateCcw /> New job
           </Button>
         </div>
-        <nav className="flex px-2" role="tablist">
+        <nav className="flex overflow-x-auto px-2" role="tablist">
           {TABS.map((t) => (
             <button
               key={t}
@@ -86,7 +95,7 @@ export default function App() {
               aria-selected={tab === t}
               onClick={() => setTab(t)}
               className={cn(
-                "cursor-pointer border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+                "shrink-0 cursor-pointer whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors",
                 tab === t
                   ? "border-primary text-foreground"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -158,6 +167,20 @@ export default function App() {
             goSettings={() => setTab("Settings")}
             goJob={() => setTab("Job")}
           />
+        ) : tab === "Q&A" ? (
+          <AnswersTab
+            settings={settings}
+            job={job}
+            items={answers.items}
+            prefs={answers.prefs}
+            setPrefs={answers.setPrefs}
+            status={answers.status}
+            onAsk={(question) => answers.run(settings, job, analysis, question)}
+            onEdit={answers.edit}
+            onRemove={answers.remove}
+            onCancel={answers.cancel}
+            goSettings={() => setTab("Settings")}
+          />
         ) : (
           <Placeholder name={tab} needsSetup={!settings.apiKey || !settings.baseResume} goSettings={() => setTab("Settings")} />
         )}
@@ -170,7 +193,7 @@ export default function App() {
         onCancel={() => setConfirmClear(false)}
         onConfirm={() => void clearAll()}
       >
-        <p>This clears the job description, the analysis, your suggestion progress, the cover letter draft and the LinkedIn messages.</p>
+        <p>This clears the job description, the analysis, your suggestion progress, the cover letter draft, the LinkedIn messages and the Q&A answers.</p>
         <p>Kept: your settings, master resume and cover letter, and any skills you added to your extra facts. Files you already downloaded are not affected.</p>
       </ConfirmDialog>
     </div>

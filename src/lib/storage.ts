@@ -1,15 +1,22 @@
+import { z } from "zod";
 import {
   AnalysisSchema,
+  AnswerPrefsSchema,
+  AnswerSchema,
   CoverLetterSchema,
   CoverPrefsSchema,
   OutreachSchema,
   SuggestionStateSchema,
   type Analysis,
+  type Answer,
+  type AnswerPrefs,
   type CoverLetter,
   type CoverPrefs,
   type Outreach,
   type SuggestionStates
 } from "./schema";
+
+const AnswersSchema = z.array(AnswerSchema);
 
 export const DEFAULT_MODEL = "gemini-3.8-flash";
 
@@ -180,11 +187,33 @@ export async function saveOutreach(o: Outreach): Promise<void> {
   await chrome.storage.local.set({ [OUTREACH_KEY]: o });
 }
 
+const ANSWERS_KEY = "answers";
+const ANSWER_PREFS_KEY = "answerPrefs";
+
+export async function loadAnswers(): Promise<Answer[]> {
+  const stored = await chrome.storage.local.get(ANSWERS_KEY);
+  const parsed = AnswersSchema.safeParse(stored[ANSWERS_KEY]);
+  return parsed.success ? parsed.data : [];
+}
+
+export async function saveAnswers(a: Answer[]): Promise<void> {
+  await chrome.storage.local.set({ [ANSWERS_KEY]: a });
+}
+
+export async function loadAnswerPrefs(): Promise<AnswerPrefs> {
+  const stored = await chrome.storage.local.get(ANSWER_PREFS_KEY);
+  return AnswerPrefsSchema.parse(stored[ANSWER_PREFS_KEY] ?? {});
+}
+
+export async function saveAnswerPrefs(p: AnswerPrefs): Promise<void> {
+  await chrome.storage.local.set({ [ANSWER_PREFS_KEY]: p });
+}
+
 /**
  * Forgets everything about the current job: the description, the analysis, the suggestion progress and the
- * cover letter and LinkedIn drafts. Settings, your master texts, the cover letter tone/language and any PDF-build backup
- * are deliberately kept.
+ * cover letter, LinkedIn and Q&A drafts. Settings, your master texts, the cover letter tone/language, the Q&A
+ * language level and any PDF-build backup are deliberately kept.
  */
 export async function clearJobData(): Promise<void> {
-  await chrome.storage.local.remove([JOB_KEY, ANALYSIS_KEY, STATE_KEY, COVER_KEY, OUTREACH_KEY]);
+  await chrome.storage.local.remove([JOB_KEY, ANALYSIS_KEY, STATE_KEY, COVER_KEY, OUTREACH_KEY, ANSWERS_KEY]);
 }

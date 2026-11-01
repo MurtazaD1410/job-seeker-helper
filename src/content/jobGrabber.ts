@@ -117,6 +117,14 @@ export function extractJobFromPage(): GrabResult {
       company: []
     },
     {
+      // The search page has a results list in the outer <main> and the open job in a nested <main><article>.
+      name: "workwise",
+      host: /(^|\.)workwise\.io$/,
+      description: ["main main article", "main article", "article"],
+      title: ["main main article h1", "article h1", "h1"],
+      company: []
+    },
+    {
       name: "personio",
       host: /(^|\.)personio\.(de|com)$/,
       // Current Personio pages split the posting into several .detail-content-block sections.
@@ -195,7 +203,8 @@ export function extractJobFromPage(): GrabResult {
   }
   // Indeed's company block lists the name, rating and place on separate lines: only the first is the name.
   if (site?.name === "indeed") company = company.split("\n")[0].trim();
-  if (!company) company = meta("og:site_name");
+  // On a job board the site name isn't the employer.
+  if (!company && site?.name !== "workwise") company = meta("og:site_name");
   if (!title) title = textOf(document.querySelector("h1")) || meta("og:title");
   title = title.slice(0, 200);
   company = company.slice(0, 200);

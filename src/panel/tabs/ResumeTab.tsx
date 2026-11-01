@@ -57,20 +57,45 @@ export function ResumeTab({ analysis, settings, states, setState, overleaf, buil
     );
   }
 
+  const doc = { project: settings.resumeOverleafProject, file: settings.resumeOverleafFile };
+  const docTab = overleaf.tabFor(doc.project);
+
   if (analysis.suggestions.length === 0) {
+    // Nothing to change, but you may still want the PDF of your master, named for this company and role.
     return (
-      <p className="text-sm text-muted-foreground">
-        No honest edits were found for this job
-        {analysis.dropped.some((d) => d.kind === "suggestion") ? ", and some suggestions were discarded by validation (see the Job tab)" : ""}. Your resume
-        already covers what it can.
-      </p>
+      <div className="flex flex-col gap-4">
+        <p className="text-sm text-muted-foreground">
+          No honest edits were found for this job
+          {analysis.dropped.some((d) => d.kind === "suggestion") ? ", and some suggestions were discarded by validation (see the Job tab)" : ""}. Your resume
+          already covers what it can.
+        </p>
+        <OverleafTarget overleaf={overleaf} />
+        <ExportCard
+          title="Resume (unchanged)"
+          summary="No edits needed. Export your master resume as is."
+          fileName={buildFileName(settings.resumeFileName, { company: analysis.company, role: analysis.job_title }, "tex")}
+          latex={settings.baseResume}
+          original={settings.baseResume}
+          disabled={!settings.baseResume.trim()}
+          issues={[]}
+        >
+          <BuildPdfButton
+            label="resume"
+            tailored={settings.baseResume}
+            master={settings.baseResume}
+            doc={doc}
+            tabTitle={docTab?.title}
+            fileName={buildFileName(settings.resumeFileName, { company: analysis.company, role: analysis.job_title }, "pdf")}
+            overleaf={overleaf}
+            builder={builder}
+          />
+        </ExportCard>
+      </div>
     );
   }
 
   const list = analysis.suggestions;
   const count = (st: string) => list.filter((s) => states[s.id]?.status === st).length;
-  const doc = { project: settings.resumeOverleafProject, file: settings.resumeOverleafFile };
-  const docTab = overleaf.tabFor(doc.project);
   const canApply = !!docTab && !applying;
   const applicable = list.filter((s) => !staleIds.has(s.id) && states[s.id]?.status !== "skipped" && states[s.id]?.status !== "applied");
 

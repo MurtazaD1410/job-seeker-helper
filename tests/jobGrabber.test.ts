@@ -122,6 +122,22 @@ describe("extractJobFromPage", () => {
     expect(r.text).not.toContain("bewerben");
   });
 
+  it("reads the open Workwise job (nested main > article) and not the results list or filters", () => {
+    setPage(
+      `<main><div class="filters"><button>Weitere Filter</button></div>
+         <ul>${"<li><a href='#'>Another job in Berlin</a></li>".repeat(40)}</ul>
+         <main class="box"><article><h1>Werkstudent Softwareentwicklung (m/w/d)</h1><p>${LONG}</p><h2>Dein Profil</h2><p>Ende der Anzeige.</p></article></main></main>`,
+      "https://www.workwise.io/jobsuche?id=66561"
+    );
+    const r = run();
+    expect(r.source).toBe("site");
+    expect(r.title).toBe("Werkstudent Softwareentwicklung (m/w/d)");
+    expect(r.company).toBe("");
+    expect(r.text).toContain("Ende der Anzeige.");
+    expect(r.text).not.toContain("Another job");
+    expect(r.text).not.toContain("Weitere Filter");
+  });
+
   it("reads Indeed's current description block and not the results list beside it", () => {
     setPage(
       `<main><ul class="jobsearch-ResultsList">${"<li><a href='#'>Another job in Fulda</a></li>".repeat(60)}</ul>

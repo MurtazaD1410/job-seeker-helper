@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyLineEdit, parseLetter, toDisplay, toLatex } from "@/lib/letterPreview";
+import { applyLineEdit, parseLetter, toDisplay, toLatex, toPlainText } from "@/lib/letterPreview";
 
 // Same shape as a real letter: header boxes, a layout-only title, date line, greeting directly above the
 // first paragraph, paragraphs separated by blank lines, and a closing with \\ and \par.
@@ -102,6 +102,23 @@ Has *stars* literally.
 
   it("returns nothing without a document body", () => {
     expect(parseLetter("just text")).toEqual([]);
+  });
+});
+
+describe("toPlainText", () => {
+  it("gives the greeting, paragraphs and closing without header, date or markers", () => {
+    expect(toPlainText(LETTER)).toBe(
+      [
+        "Sehr geehrte Damen und Herren,",
+        "ich arbeite bei R&D mit React und TypeScript. Das Ergebnis: 100% Zufriedenheit.",
+        "Zweiter Absatz mit Tilde Dr. Meier.",
+        "Mit freundlichen Grüßen,\nMax Mustermann"
+      ].join("\n\n")
+    );
+  });
+
+  it("is empty without a body", () => {
+    expect(toPlainText("just text")).toBe("");
   });
 });
 

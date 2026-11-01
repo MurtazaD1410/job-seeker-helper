@@ -144,6 +144,37 @@ export const CoverLetterSchema = z.object({
 });
 export type CoverLetter = z.infer<typeof CoverLetterSchema>;
 
+// --- Application questions ("Welche Erfahrungen bringen Sie mit …?")
+
+/** CEFR level the answer is written at: B1 simple, B2 clear, C1 professional. */
+export const LEVELS = ["b1", "b2", "c1"] as const;
+export const LENGTHS = ["short", "medium", "long"] as const;
+export type Level = (typeof LEVELS)[number];
+export type Length = (typeof LENGTHS)[number];
+
+export const AnswerPrefsSchema = z.object({
+  language: z.enum(["auto", ...LANGUAGES]).catch("auto"),
+  level: z.enum(LEVELS).catch("b2"),
+  length: z.enum(LENGTHS).catch("medium"),
+  /** Empty = the "pro" sibling of the main model (see defaultAnswerModel). */
+  model: z.string().catch(""),
+  /** 0 = no limit. Many forms cap the answer, e.g. at 1000 characters. */
+  maxChars: z.number().int().min(0).max(20000).catch(0)
+});
+export type AnswerPrefs = z.infer<typeof AnswerPrefsSchema>;
+
+export const AnswerSchema = z.object({
+  id: z.string(),
+  question: z.string(),
+  answer: z.string(),
+  warnings: z.array(z.string()),
+  language: z.enum(LANGUAGES),
+  level: z.enum(LEVELS),
+  model: z.string(),
+  created_at: z.number()
+});
+export type Answer = z.infer<typeof AnswerSchema>;
+
 // --- LinkedIn outreach (plain text, so JSON mode is fine here)
 
 /** LinkedIn's limit for the note on a connection request. */

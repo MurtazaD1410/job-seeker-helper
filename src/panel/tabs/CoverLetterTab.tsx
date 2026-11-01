@@ -12,6 +12,7 @@ import { BuildPdfButton } from "../components/BuildPdf";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { OverleafTarget } from "../components/OverleafTarget";
 import { DiffView } from "../components/DiffView";
+import { toPlainText } from "@/lib/letterPreview";
 import { LetterPreview } from "../components/LetterPreview";
 import { Elapsed } from "../components/Elapsed";
 import { Button } from "../components/ui/button";
@@ -36,8 +37,9 @@ interface Props {
 const SELECT = "h-9 rounded-md border border-input bg-background px-2 text-sm";
 
 export function CoverLetterTab({ settings, job, analysis, letter, prefs, setPrefs, status, overleaf, builder, onEdit, onGenerate, onCancel, goSettings, goJob }: Props) {
-  const [view, setView] = useState<"preview" | "letter" | "diff">("preview");
+  const [view, setView] = useState<"preview" | "text" | "letter" | "diff">("preview");
   const [copied, setCopied] = useState(false);
+  const [copiedText, setCopiedText] = useState(false);
   const [copyError, setCopyError] = useState("");
   const running = status.state === "running";
   const [confirm, setConfirm] = useState<{ looksRight: boolean } | null>(null);
@@ -55,6 +57,17 @@ export function CoverLetterTab({ settings, job, analysis, letter, prefs, setPref
   const doc = { project: settings.coverOverleafProject, file: settings.coverOverleafFile };
   const docTab = overleaf.tabFor(doc.project);
   const fileName = letter ? buildFileName(settings.coverFileName, { company: letter.company, role: letter.job_title }, "tex") : "";
+
+  async function copyPlain() {
+    if (!letter) return;
+    setCopyError("");
+    try {
+      await navigator.clipboard.writeText(toPlainText(letter.latex));
+      setCopiedText(true);
+    } catch {
+      setCopyError("Couldn't access the clipboard. Click into the text box, press Ctrl+A and copy it manually.");
+    }
+  }
 
   async function copy() {
     if (!letter) return;
@@ -189,15 +202,32 @@ export function CoverLetterTab({ settings, job, analysis, letter, prefs, setPref
           {letter.summary && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{letter.summary}</p>}
 
           <div className="flex gap-1" role="tablist" aria-label="Cover letter view">
-            {(["preview", "letter", "diff"] as const).map((v) => (
+            {(["preview", "text", "letter", "diff"] as const).map((v) => (
               <Button key={v} size="sm" variant={view === v ? "secondary" : "ghost"} role="tab" aria-selected={view === v} onClick={() => setView(v)}>
-                {v === "preview" ? "Preview" : v === "letter" ? "LaTeX" : "Changes vs. your base"}
+                {v === "preview" ? "Preview" : v === "text" ? "Plain text" : v === "letter" ? "LaTeX" : "Changes vs. your base"}
               </Button>
             ))}
           </div>
 
           {view === "preview" ? (
             <LetterPreview latex={letter.latex} onChange={onEdit} />
+          ) : view === "text" ? (
+            <div className="flex flex-col gap-2">
+              <textarea
+                readOnly
+                aria-label="Cover letter as plain text"
+                value={toPlainText(letter.latex)}
+                onFocus={(e) => e.currentTarget.select()}
+                rows={16}
+                className="w-full resize-y rounded-md border border-border bg-background p-2 text-sm leading-relaxed"
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" onClick={() => void copyPlain()}>
+                  {copiedText ? <Check /> : <Copy />} Copy text
+                </Button>
+                <span className="text-xs text-muted-foreground">For application forms with a text box. Edit the letter in Preview first.</span>
+              </div>
+            </div>
           ) : view === "letter" ? (
             <pre className="max-h-[28rem] overflow-auto whitespace-pre-wrap break-words rounded-md border border-border bg-background p-2 font-mono text-xs leading-relaxed">
               {letter.latex}
