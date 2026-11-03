@@ -3,6 +3,7 @@ import { Loader2, RotateCcw, SquarePen, TriangleAlert } from "lucide-react";
 import { buildFileName } from "@/lib/fileName";
 import { locate } from "@/lib/latex";
 import { OUTCOME_MESSAGE } from "@/lib/overleaf";
+import { resumeFor } from "@/lib/resume";
 import { tailorResume } from "@/lib/tailor";
 import type { Analysis, Suggestion, SuggestionStates } from "@/lib/schema";
 import type { Settings } from "@/lib/storage";
@@ -33,18 +34,21 @@ export function ResumeTab({ analysis, settings, states, setState, overleaf, buil
   const [mismatch, setMismatch] = useState(false);
   const [confirmReset, setConfirmReset] = useState<{ thenApply: boolean } | null>(null);
 
+  // The master the analysis was written against (German or English, depending on the posting).
+  const master = resumeFor(settings, analysis?.language ?? "de");
+
   // Suggestions are only safe to apply while their original still matches the base resume exactly.
   const staleIds = useMemo(() => {
     const out = new Set<string>();
-    for (const s of analysis?.suggestions ?? []) if (locate(settings.baseResume, s.original).kind !== "exact") out.add(s.id);
+    for (const s of analysis?.suggestions ?? []) if (locate(master.text, s.original).kind !== "exact") out.add(s.id);
     return out;
-  }, [analysis, settings.baseResume]);
+  }, [analysis, master.text]);
 
   // The tailored resume: master + every suggestion that wasn't skipped.
   const tailored = useMemo(() => {
     const included = (analysis?.suggestions ?? []).filter((s) => states[s.id]?.status !== "skipped");
-    return tailorResume(settings.baseResume, included);
-  }, [analysis, states, settings.baseResume]);
+    return tailorResume(master.text, included);
+  }, [analysis, states, master.text]);
 
   if (!analysis) {
     return (
@@ -57,7 +61,7 @@ export function ResumeTab({ analysis, settings, states, setState, overleaf, buil
     );
   }
 
-  const doc = { project: settings.resumeOverleafProject, file: settings.resumeOverleafFile };
+  const doc = { project: master.project, file: master.file };
   const docTab = overleaf.tabFor(doc.project);
 
   if (analysis.suggestions.length === 0) {
@@ -73,19 +77,19 @@ export function ResumeTab({ analysis, settings, states, setState, overleaf, buil
         <ExportCard
           title="Resume (unchanged)"
           summary="No edits needed. Export your master resume as is."
-          fileName={buildFileName(settings.resumeFileName, { company: analysis.company, role: analysis.job_title }, "tex")}
-          latex={settings.baseResume}
-          original={settings.baseResume}
-          disabled={!settings.baseResume.trim()}
+          fileName={buildFileName(master.fileName, { company: analysis.company, role: analysis.job_title }, "tex")}
+          latex={master.text}
+          original={master.text}
+          disabled={!master.text.trim()}
           issues={[]}
         >
           <BuildPdfButton
             label="resume"
-            tailored={settings.baseResume}
-            master={settings.baseResume}
+            tailored={master.text}
+            master={master.text}
             doc={doc}
             tabTitle={docTab?.title}
-            fileName={buildFileName(settings.resumeFileName, { company: analysis.company, role: analysis.job_title }, "pdf")}
+            fileName={buildFileName(master.fileName, { company: analysis.company, role: analysis.job_title }, "pdf")}
             overleaf={overleaf}
             builder={builder}
           />
@@ -151,7 +155,7 @@ export function ResumeTab({ analysis, settings, states, setState, overleaf, buil
     setConfirmReset(null);
     setApplying(true);
     setApplyNote(null);
-    const r = await overleaf.callFor(doc, { op: "replace", text: settings.baseResume });
+    const r = await overleaf.callFor(doc, { op: "replace", text: master.text });
     setApplying(false);
     if (!r.ok || r.op !== "replace") {
       setApplyNote({ kind: "error", text: `${r.ok ? "Unexpected reply from Overleaf." : r.error} Nothing was changed.` });
@@ -172,7 +176,8 @@ export function ResumeTab({ analysis, settings, states, setState, overleaf, buil
     <div className="flex flex-col gap-4">
       <OverleafTarget overleaf={overleaf} />
       <p className="text-xs text-muted-foreground">
-        Apply goes to: {docTab ? docTab.title : "no open Overleaf project (check Settings)"}
+        Using your {master.language === "en" ? "English" : "German"} resume
+        {master.language === "de" && analysis.language === "en" ? " (no English resume in Settings yet)" : ""}. Apply goes to: {docTab ? docTab.title : "no open Overleaf project (check Settings)"}
         {doc.file ? ` · ${doc.file}` : " · the open file"}
       </p>
 
@@ -222,9 +227,9 @@ export function ResumeTab({ analysis, settings, states, setState, overleaf, buil
       <ExportCard
         title="Tailored resume"
         summary={`${tailored.applied.length} of ${list.length} suggestion${list.length === 1 ? "" : "s"} included. Skipped ones are left out.`}
-        fileName={buildFileName(settings.resumeFileName, { company: analysis.company, role: analysis.job_title }, "tex")}
+        fileName={buildFileName(master.fileName, { company: analysis.company, role: analysis.job_title }, "tex")}
         latex={tailored.latex}
-        original={settings.baseResume}
+        original={master.text}
         disabled={tailored.applied.length === 0}
         issues={[
           ...tailored.failed.map((f) => `${f.suggestion.section || f.suggestion.id} was left out: ${f.reason}.`),
@@ -234,10 +239,10 @@ export function ResumeTab({ analysis, settings, states, setState, overleaf, buil
         <BuildPdfButton
           label="resume"
           tailored={tailored.latex}
-          master={settings.baseResume}
+          master={master.text}
           doc={doc}
           tabTitle={docTab?.title}
-          fileName={buildFileName(settings.resumeFileName, { company: analysis.company, role: analysis.job_title }, "pdf")}
+          fileName={buildFileName(master.fileName, { company: analysis.company, role: analysis.job_title }, "pdf")}
           overleaf={overleaf}
           builder={builder}
           disabled={tailored.applied.length === 0}

@@ -1,3 +1,5 @@
+import { guessLanguage } from "./coverLetter";
+import { resumeFor } from "./resume";
 import { checkReplacement, countLineBreaks, locate, numberTokens } from "./latex";
 import { generateJson, type GenerateJsonOptions, type RetryInfo } from "./gemini";
 import { buildAnalysisPrompt, ANALYSIS_SYSTEM_INSTRUCTION } from "./prompts";
@@ -107,6 +109,9 @@ export async function analyzeJob({ settings, job, ...rest }: AnalyzeOptions): Pr
   if (!settings.baseResume.trim()) throw new Error("Add your base resume (LaTeX) in Settings first.");
   if (!job.description.trim()) throw new Error("Paste or grab a job description first.");
 
+  // English postings get the English resume (if there is one), everything else the German one.
+  const resume = resumeFor(settings, guessLanguage(job.description));
+
   // Redaction applies to what is sent; validation always runs against the real resume.
   const hide = settings.redactContact ? redactContact : (t: string) => t;
   const response = await generateJson({
@@ -117,7 +122,7 @@ export async function analyzeJob({ settings, job, ...rest }: AnalyzeOptions): Pr
       jobTitle: job.title,
       company: job.company,
       jobDescription: job.description,
-      resume: hide(settings.baseResume),
+      resume: hide(resume.text),
       extraFacts: hide(settings.extraFacts),
       learningNote: hide(settings.learningNote)
     }),
@@ -125,9 +130,10 @@ export async function analyzeJob({ settings, job, ...rest }: AnalyzeOptions): Pr
     ...rest
   });
 
-  const validated = validateAnalysis(response, { resume: settings.baseResume, extraFacts: settings.extraFacts });
+  const validated = validateAnalysis(response, { resume: resume.text, extraFacts: settings.extraFacts });
   return {
     ...validated,
+    language: resume.language,
     model: settings.model,
     job_title: job.title,
     company: job.company,

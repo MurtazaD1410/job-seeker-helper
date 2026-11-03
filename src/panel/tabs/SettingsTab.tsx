@@ -25,7 +25,11 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-type PullField = "baseResume" | "baseCoverLetter";
+type PullField = "baseResume" | "baseResumeEn" | "baseCoverLetter";
+
+const FIELD_LABEL: Record<PullField, string> = { baseResume: "German resume", baseResumeEn: "English resume", baseCoverLetter: "cover letter" };
+const PROJECT_KEY = { baseResume: "resumeOverleafProject", baseResumeEn: "resumeOverleafProjectEn", baseCoverLetter: "coverOverleafProject" } as const;
+const FILE_KEY = { baseResume: "resumeOverleafFile", baseResumeEn: "resumeOverleafFileEn", baseCoverLetter: "coverOverleafFile" } as const;
 
 const PICK = "h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs";
 
@@ -122,14 +126,16 @@ export function SettingsTab({ settings, onSave, overleaf }: Props) {
     const r = await overleaf.callFor({ project: draft[projectKey(field)], file: draft[fileKey(field)] }, { op: "read" });
     setPulling(null);
     const squash = (t: string) => t.replace(/\s+/g, " ").trim();
-    const other = field === "baseResume" ? draft.baseCoverLetter : draft.baseResume;
+    // A resume must not be a copy of another master text, or the wrong Overleaf file is open.
+    const others = (["baseResume", "baseResumeEn", "baseCoverLetter"] as const).filter((f) => f !== field && draft[f].trim());
+    const clash = others.find((f) => squash(r.ok && r.op === "read" ? r.text : "") === squash(draft[f]));
     if (!r.ok || r.op !== "read") {
       setPullNote({ field, kind: "error", text: r.ok ? "Unexpected reply from Overleaf." : r.error });
-    } else if (other.trim() && squash(r.text) === squash(other)) {
+    } else if (clash) {
       setPullNote({
         field,
         kind: "error",
-        text: `That is identical to your ${field === "baseResume" ? "base cover letter" : "base resume"}, so the wrong Overleaf file is probably open. Set the file names above, or open the right file first.`
+        text: `That is identical to your ${FIELD_LABEL[clash]}, so the wrong Overleaf file is probably open. Set the file names above, or open the right file first.`
       });
     } else if (draft[field].trim() && draft[field] !== r.text) {
       setPendingPull({ field, text: r.text });
@@ -144,13 +150,13 @@ export function SettingsTab({ settings, onSave, overleaf }: Props) {
     setPullNote({ field, kind: "ok", text: `Read ${text.length.toLocaleString()} characters from the open Overleaf file. Click "Save settings" to keep it.` });
   }
 
-  const projectKey = (field: PullField) => (field === "baseResume" ? "resumeOverleafProject" : "coverOverleafProject") as "resumeOverleafProject" | "coverOverleafProject";
-  const fileKey = (field: PullField) => (field === "baseResume" ? "resumeOverleafFile" : "coverOverleafFile") as "resumeOverleafFile" | "coverOverleafFile";
+  const projectKey = (field: PullField) => PROJECT_KEY[field];
+  const fileKey = (field: PullField) => FILE_KEY[field];
 
   const pullControls = (field: PullField) => (
     <div className="flex flex-col gap-1.5">
       <DocPicker
-        label={field === "baseResume" ? "Resume" : "Cover letter"}
+        label={field === "baseCoverLetter" ? "Cover letter" : field === "baseResumeEn" ? "English resume" : "German resume"}
         project={draft[projectKey(field)]}
         file={draft[fileKey(field)]}
         overleaf={overleaf}
@@ -243,7 +249,7 @@ export function SettingsTab({ settings, onSave, overleaf }: Props) {
         )}
       </Field>
 
-      <Field label="Base resume (LaTeX)">
+      <Field label="Base resume, German (LaTeX)" hint="Used for German job postings, and for English ones while no English resume is set.">
         <Textarea
           rows={12}
           spellCheck={false}
@@ -254,6 +260,18 @@ export function SettingsTab({ settings, onSave, overleaf }: Props) {
         />
       </Field>
       {pullControls("baseResume")}
+
+      <Field label="Base resume, English (LaTeX, optional)" hint="Used for English job postings. Leave empty to always use the German resume.">
+        <Textarea
+          rows={12}
+          spellCheck={false}
+          className="font-mono text-xs"
+          placeholder="\documentclass{article} …"
+          value={draft.baseResumeEn}
+          onChange={(e) => set("baseResumeEn", e.target.value)}
+        />
+      </Field>
+      {pullControls("baseResumeEn")}
 
       <Field label="Base cover letter (LaTeX)">
         <Textarea
@@ -291,6 +309,9 @@ export function SettingsTab({ settings, onSave, overleaf }: Props) {
           hint="Use {company} and {role}. The extension adds .tex. Example: Murtaza_Dhariwala_Lebenslauf_admeritia.tex"
         >
           <Input spellCheck={false} value={draft.resumeFileName} onChange={(e) => set("resumeFileName", e.target.value)} />
+        </Field>
+        <Field label="English resume file name" hint="Same placeholders. Used when the English resume is chosen.">
+          <Input spellCheck={false} value={draft.resumeFileNameEn} onChange={(e) => set("resumeFileNameEn", e.target.value)} />
         </Field>
         <Field label="Cover letter file name" hint="Same placeholders. Legal forms like GmbH are dropped from {company}.">
           <Input spellCheck={false} value={draft.coverFileName} onChange={(e) => set("coverFileName", e.target.value)} />
@@ -330,7 +351,7 @@ export function SettingsTab({ settings, onSave, overleaf }: Props) {
         onConfirm={() => pendingPull && finishPull(pendingPull.field, pendingPull.text)}
       >
         <p>
-          The {pendingPull?.field === "baseResume" ? "base resume" : "base cover letter"} field already has different text. Replace it with the file open in
+          The {pendingPull ? FIELD_LABEL[pendingPull.field] : "master text"} field already has different text. Replace it with the file open in
           Overleaf? Nothing is saved until you click "Save settings".
         </p>
       </ConfirmDialog>

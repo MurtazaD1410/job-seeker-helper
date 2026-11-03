@@ -23,24 +23,31 @@ export const DEFAULT_MODEL = "gemini-3.8-flash";
 export interface Settings {
   apiKey: string;
   model: string;
+  /** German resume (the default). */
   baseResume: string;
+  /** English resume, used for English job postings. Empty = the German one is used for every posting. */
+  baseResumeEn: string;
   baseCoverLetter: string;
   extraFacts: string;
   /** Attitude, not skills: willingness to learn. Never counts as evidence for a hard skill. */
   learningNote: string;
   /** File name templates for exports; {company} and {role} are filled in, the extension is added. */
   resumeFileName: string;
+  resumeFileNameEn: string;
   coverFileName: string;
   /** Names of the files in the Overleaf project (e.g. "resume.tex"); empty = use whatever file is open. */
   resumeOverleafFile: string;
+  resumeOverleafFileEn: string;
   coverOverleafFile: string;
   /** Overleaf project ids (from the project URL); empty = the tab selected in the Overleaf bar. */
   resumeOverleafProject: string;
+  resumeOverleafProjectEn: string;
   coverOverleafProject: string;
   redactContact: boolean;
 }
 
 export const DEFAULT_RESUME_FILE_NAME = "Murtaza_Dhariwala_Lebenslauf_{company}";
+export const DEFAULT_RESUME_FILE_NAME_EN = "Murtaza_Dhariwala_Resume_{company}";
 export const DEFAULT_COVER_FILE_NAME = "Murtaza_Dhariwala_Anschreiben_{company}";
 
 export const DEFAULT_LEARNING_NOTE =
@@ -50,14 +57,18 @@ export const DEFAULT_SETTINGS: Settings = {
   apiKey: "",
   model: DEFAULT_MODEL,
   baseResume: "",
+  baseResumeEn: "",
   baseCoverLetter: "",
   extraFacts: "",
   learningNote: DEFAULT_LEARNING_NOTE,
   resumeFileName: DEFAULT_RESUME_FILE_NAME,
+  resumeFileNameEn: DEFAULT_RESUME_FILE_NAME_EN,
   coverFileName: DEFAULT_COVER_FILE_NAME,
   resumeOverleafFile: "",
+  resumeOverleafFileEn: "",
   coverOverleafFile: "",
   resumeOverleafProject: "",
+  resumeOverleafProjectEn: "",
   coverOverleafProject: "",
   redactContact: true
 };
@@ -72,15 +83,19 @@ export function normalizeSettings(raw: unknown): Settings {
     apiKey: str("apiKey"),
     model: str("model").trim() || DEFAULT_MODEL,
     baseResume: str("baseResume"),
+    baseResumeEn: str("baseResumeEn"),
     baseCoverLetter: str("baseCoverLetter"),
     extraFacts: str("extraFacts"),
     // Unset (existing installs) gets the default paragraph; an empty string means the user cleared it.
     learningNote: typeof r.learningNote === "string" ? r.learningNote : DEFAULT_LEARNING_NOTE,
     resumeFileName: str("resumeFileName").trim() || DEFAULT_RESUME_FILE_NAME,
+    resumeFileNameEn: str("resumeFileNameEn").trim() || DEFAULT_RESUME_FILE_NAME_EN,
     coverFileName: str("coverFileName").trim() || DEFAULT_COVER_FILE_NAME,
     resumeOverleafFile: str("resumeOverleafFile").trim(),
+    resumeOverleafFileEn: str("resumeOverleafFileEn").trim(),
     coverOverleafFile: str("coverOverleafFile").trim(),
     resumeOverleafProject: str("resumeOverleafProject").trim(),
+    resumeOverleafProjectEn: str("resumeOverleafProjectEn").trim(),
     coverOverleafProject: str("coverOverleafProject").trim(),
     redactContact: typeof r.redactContact === "boolean" ? r.redactContact : DEFAULT_SETTINGS.redactContact
   };

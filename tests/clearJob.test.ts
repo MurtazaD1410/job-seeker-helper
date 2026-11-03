@@ -29,6 +29,7 @@ const analysis: Analysis = {
   score_before: 50,
   score_after: 60,
   dropped: [],
+  language: "de",
   model: "m",
   job_title: "Dev",
   company: "Acme",

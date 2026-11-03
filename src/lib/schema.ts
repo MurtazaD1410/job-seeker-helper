@@ -52,6 +52,8 @@ export const AnalysisSchema = z.object({
   score_before: z.number().min(0).max(100),
   score_after: z.number().min(0).max(100),
   dropped: z.array(DroppedSchema),
+  /** Which resume the suggestions were written against. Analyses saved before the English resume existed were German. */
+  language: z.enum(["de", "en"]).default("de"),
   model: z.string(),
   job_title: z.string(),
   company: z.string(),
