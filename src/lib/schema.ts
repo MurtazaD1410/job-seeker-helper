@@ -221,3 +221,111 @@ export const OutreachSchema = OutreachResponseSchema.extend({
   created_at: z.number()
 });
 export type Outreach = z.infer<typeof OutreachSchema>;
+
+// --- Interview prep
+
+export const QUESTION_CATEGORIES = ["technical", "behavioral", "role"] as const;
+export type QuestionCategory = (typeof QUESTION_CATEGORIES)[number];
+
+const text = z.string().trim();
+const textList = z.array(text.min(1)).default([]);
+
+export const InterviewQuestionSchema = z.object({
+  category: z.enum(QUESTION_CATEGORIES).catch("role"),
+  question: text.min(5),
+  why_asked: text.default(""),
+  talking_points: textList,
+  /** Only for behavioral questions. */
+  star: z.object({ situation: text, task: text, action: text, result: text }).optional().catch(undefined)
+});
+
+export const InterviewGapSchema = z.object({
+  skill: text.min(1).max(100),
+  likely_question: text.min(5),
+  honest_answer: text.min(5),
+  study: textList
+});
+
+export const InterviewStudySchema = z.object({
+  topic: text.min(1).max(150),
+  why: text.default("")
+});
+
+export const InterviewRawSchema = z.object({
+  pitch: text.min(20),
+  questions: z.array(z.unknown()),
+  gaps: z.array(z.unknown()).default([]),
+  ask_them: z.array(z.unknown()).default([]),
+  study_list: z.array(z.unknown()).default([])
+});
+
+export const InterviewPackSchema = z.object({
+  pitch: z.string(),
+  questions: z.array(InterviewQuestionSchema),
+  gaps: z.array(InterviewGapSchema),
+  ask_them: z.array(z.string()),
+  study_list: z.array(InterviewStudySchema),
+  warnings: z.array(z.string()),
+  language: z.enum(LANGUAGES),
+  /** True when there was no real job description, so the questions are generic for the role. */
+  thin: z.boolean(),
+  model: z.string(),
+  job_title: z.string(),
+  company: z.string(),
+  created_at: z.number()
+});
+
+export const InterviewPrefsSchema = z.object({
+  language: z.enum(["auto", ...LANGUAGES]).catch("auto"),
+  /** Empty = the "pro" sibling of the main model. */
+  model: z.string().catch("")
+});
+
+export type InterviewQuestion = z.infer<typeof InterviewQuestionSchema>;
+export type InterviewGap = z.infer<typeof InterviewGapSchema>;
+export type InterviewStudy = z.infer<typeof InterviewStudySchema>;
+export type InterviewPack = z.infer<typeof InterviewPackSchema>;
+export type InterviewPrefs = z.infer<typeof InterviewPrefsSchema>;
+
+const STR = { type: "STRING" } as const;
+const STR_LIST = { type: "ARRAY", items: STR } as const;
+
+export const INTERVIEW_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    pitch: STR,
+    questions: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          category: { type: "STRING", enum: [...QUESTION_CATEGORIES] },
+          question: STR,
+          why_asked: STR,
+          talking_points: STR_LIST,
+          star: {
+            type: "OBJECT",
+            description: "Only for behavioral questions",
+            properties: { situation: STR, task: STR, action: STR, result: STR },
+            required: ["situation", "task", "action", "result"]
+          }
+        },
+        required: ["category", "question", "why_asked", "talking_points"]
+      }
+    },
+    gaps: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: { skill: STR, likely_question: STR, honest_answer: STR, study: STR_LIST },
+        required: ["skill", "likely_question", "honest_answer", "study"]
+      }
+    },
+    ask_them: STR_LIST,
+    study_list: {
+      type: "ARRAY",
+      items: { type: "OBJECT", properties: { topic: STR, why: STR }, required: ["topic", "why"] }
+    }
+  },
+  required: ["pitch", "questions", "gaps", "ask_them", "study_list"]
+} as const;

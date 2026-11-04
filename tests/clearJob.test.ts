@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { clearJobData, saveAnalysis, saveCoverLetter, saveJobDraft, saveSettings, saveSuggestionState, saveCoverPrefs, loadAnalysis, loadCoverLetter, loadJobDraft, loadSuggestionState, loadCoverPrefs, loadSettings } from "@/lib/storage";
+import { clearJobData, saveAnalysis, saveCoverLetter, saveJobDraft, saveSettings, saveSuggestionState, saveCoverPrefs, loadAnalysis, loadCoverLetter, loadJobDraft, loadSuggestionState, loadCoverPrefs, loadSettings, saveInterviewNotes, loadInterviewNotes, saveInterviewPrefs, loadInterviewPrefs } from "@/lib/storage";
 import { savePendingRestore, loadPendingRestore } from "@/lib/pendingRestore";
 import type { Analysis, CoverLetter } from "@/lib/schema";
 
@@ -57,6 +57,8 @@ describe("clearJobData", () => {
     await saveAnalysis(analysis);
     await saveSuggestionState(42, { s1: { status: "copied" } });
     await saveCoverLetter(letter);
+    await saveInterviewNotes("they use React");
+    await saveInterviewPrefs({ language: "de", model: "m" });
 
     await clearJobData();
 
@@ -65,7 +67,9 @@ describe("clearJobData", () => {
     expect(await loadAnalysis()).toBeNull();
     expect(await loadSuggestionState(42)).toEqual({});
     expect(await loadCoverLetter()).toBeNull();
+    expect(await loadInterviewNotes()).toBe("");
     // kept
+    expect(await loadInterviewPrefs()).toEqual({ language: "de", model: "m" });
     expect(await loadSettings()).toMatchObject({ apiKey: "KEY", baseResume: "MASTER" });
     expect(await loadCoverPrefs()).toEqual({ tone: "friendly", language: "en" });
     expect(await loadPendingRestore()).toMatchObject({ text: "backup" });

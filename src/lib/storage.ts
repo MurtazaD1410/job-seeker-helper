@@ -5,6 +5,8 @@ import {
   AnswerSchema,
   CoverLetterSchema,
   CoverPrefsSchema,
+  InterviewPackSchema,
+  InterviewPrefsSchema,
   OutreachSchema,
   SuggestionStateSchema,
   type Analysis,
@@ -12,6 +14,8 @@ import {
   type AnswerPrefs,
   type CoverLetter,
   type CoverPrefs,
+  type InterviewPack,
+  type InterviewPrefs,
   type Outreach,
   type SuggestionStates
 } from "./schema";
@@ -224,11 +228,43 @@ export async function saveAnswerPrefs(p: AnswerPrefs): Promise<void> {
   await chrome.storage.local.set({ [ANSWER_PREFS_KEY]: p });
 }
 
+const INTERVIEW_KEY = "interview";
+const INTERVIEW_NOTES_KEY = "interviewNotes";
+const INTERVIEW_PREFS_KEY = "interviewPrefs";
+
+export async function loadInterview(): Promise<InterviewPack | null> {
+  const stored = await chrome.storage.local.get(INTERVIEW_KEY);
+  const parsed = InterviewPackSchema.safeParse(stored[INTERVIEW_KEY]);
+  return parsed.success ? parsed.data : null;
+}
+
+export async function saveInterview(p: InterviewPack): Promise<void> {
+  await chrome.storage.local.set({ [INTERVIEW_KEY]: p });
+}
+
+export async function loadInterviewNotes(): Promise<string> {
+  const stored = await chrome.storage.local.get(INTERVIEW_NOTES_KEY);
+  return typeof stored[INTERVIEW_NOTES_KEY] === "string" ? stored[INTERVIEW_NOTES_KEY] : "";
+}
+
+export async function saveInterviewNotes(notes: string): Promise<void> {
+  await chrome.storage.local.set({ [INTERVIEW_NOTES_KEY]: notes });
+}
+
+export async function loadInterviewPrefs(): Promise<InterviewPrefs> {
+  const stored = await chrome.storage.local.get(INTERVIEW_PREFS_KEY);
+  return InterviewPrefsSchema.parse(stored[INTERVIEW_PREFS_KEY] ?? {});
+}
+
+export async function saveInterviewPrefs(p: InterviewPrefs): Promise<void> {
+  await chrome.storage.local.set({ [INTERVIEW_PREFS_KEY]: p });
+}
+
 /**
  * Forgets everything about the current job: the description, the analysis, the suggestion progress and the
- * cover letter, LinkedIn and Q&A drafts. Settings, your master texts, the cover letter tone/language, the Q&A
+ * cover letter, LinkedIn, Q&A and interview prep (with its notes). Settings, your master texts, the cover letter tone/language, the Q&A
  * language level and any PDF-build backup are deliberately kept.
  */
 export async function clearJobData(): Promise<void> {
-  await chrome.storage.local.remove([JOB_KEY, ANALYSIS_KEY, STATE_KEY, COVER_KEY, OUTREACH_KEY, ANSWERS_KEY]);
+  await chrome.storage.local.remove([JOB_KEY, ANALYSIS_KEY, STATE_KEY, COVER_KEY, OUTREACH_KEY, ANSWERS_KEY, INTERVIEW_KEY, INTERVIEW_NOTES_KEY]);
 }

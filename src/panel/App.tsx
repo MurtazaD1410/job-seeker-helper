@@ -9,6 +9,8 @@ import { JobTab } from "./tabs/JobTab";
 import { CoverLetterTab } from "./tabs/CoverLetterTab";
 import { LinkedInTab } from "./tabs/LinkedInTab";
 import { AnswersTab } from "./tabs/AnswersTab";
+import { InterviewTab } from "./tabs/InterviewTab";
+import { useInterview } from "./hooks/useInterview";
 import { useAnswers } from "./hooks/useAnswers";
 import { useOverleaf } from "./hooks/useOverleaf";
 import { usePdfBuilder } from "./hooks/usePdfBuilder";
@@ -23,7 +25,7 @@ import { useAnalysis } from "./hooks/useAnalysis";
 import { useSuggestionState } from "./hooks/useSuggestionState";
 import { useJobDraft } from "./hooks/useJobDraft";
 
-const TABS = ["Job", "Resume", "Cover Letter", "LinkedIn", "Q&A", "Settings"] as const;
+const TABS = ["Job", "Resume", "Cover Letter", "LinkedIn", "Q&A", "Interview", "Settings"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function App() {
@@ -33,6 +35,7 @@ export default function App() {
   const cover = useCoverLetter();
   const outreach = useOutreach();
   const answers = useAnswers();
+  const interview = useInterview();
   const overleaf = useOverleaf();
   const builder = usePdfBuilder(overleaf);
   const suggestionState = useSuggestionState(analysis);
@@ -43,12 +46,13 @@ export default function App() {
   const [clearCount, setClearCount] = useState(0);
 
   // "New job": after applying, forget the job, analysis, suggestions, cover letter and LinkedIn drafts.
-  const hasJobData = !!(job.title || job.company || job.description || analysis || cover.letter || outreach.pack || answers.items.length);
+  const hasJobData = !!(job.title || job.company || job.description || analysis || cover.letter || outreach.pack || answers.items.length || interview.pack || interview.notes.trim());
   const working =
     status.state === "running" ||
     cover.status.state === "running" ||
     outreach.status.state === "running" ||
     answers.status.state === "running" ||
+    interview.status.state === "running" ||
     builder.state.phase === "running";
   async function clearAll() {
     setConfirmClear(false);
@@ -57,6 +61,7 @@ export default function App() {
     cover.reset();
     outreach.reset();
     answers.reset();
+    interview.reset();
     builder.clearResult();
     await clearJobData();
     setClearCount((n) => n + 1);
@@ -181,6 +186,21 @@ export default function App() {
             onCancel={answers.cancel}
             goSettings={() => setTab("Settings")}
           />
+        ) : tab === "Interview" ? (
+          <InterviewTab
+            settings={settings}
+            job={job}
+            pack={interview.pack}
+            notes={interview.notes}
+            setNotes={interview.setNotes}
+            prefs={interview.prefs}
+            setPrefs={interview.setPrefs}
+            status={interview.status}
+            onGenerate={() => void interview.run(settings, job, analysis)}
+            onCancel={interview.cancel}
+            goSettings={() => setTab("Settings")}
+            goJob={() => setTab("Job")}
+          />
         ) : (
           <Placeholder name={tab} needsSetup={!settings.apiKey || !settings.baseResume} goSettings={() => setTab("Settings")} />
         )}
@@ -193,7 +213,7 @@ export default function App() {
         onCancel={() => setConfirmClear(false)}
         onConfirm={() => void clearAll()}
       >
-        <p>This clears the job description, the analysis, your suggestion progress, the cover letter draft, the LinkedIn messages and the Q&A answers.</p>
+        <p>This clears the job description, the analysis, your suggestion progress, the cover letter draft, the LinkedIn messages, the Q&A answers and the interview prep.</p>
         <p>Kept: your settings, master resume and cover letter, and any skills you added to your extra facts. Files you already downloaded are not affected.</p>
       </ConfirmDialog>
     </div>
